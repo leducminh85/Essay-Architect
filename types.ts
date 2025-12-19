@@ -1,6 +1,6 @@
 export enum GenerationStatus {
   IDLE = 'IDLE',
-  loading = 'loading', // using lowercase to match common UI patterns, or map it
+  loading = 'loading',
   SUCCESS = 'SUCCESS',
   ERROR = 'ERROR',
 }
@@ -8,7 +8,7 @@ export enum GenerationStatus {
 export interface OutlineItem {
   id: string;
   originalText: string;
-  level: number; // Indentation level (0 is root)
+  level: number; 
   generatedText: string;
   status: GenerationStatus;
   errorMessage?: string;
@@ -16,7 +16,8 @@ export interface OutlineItem {
 }
 
 export interface GenerationConfig {
-  tone: string[]; // Changed to array
+  tone: string[]; 
+  customTones: string[]; // New field to store added but unselected custom tones
   language: string;
   detailLevel: 'brief' | 'standard' | 'detailed';
 }

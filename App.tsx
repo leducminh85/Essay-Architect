@@ -12,6 +12,7 @@ const App: React.FC = () => {
   const [step, setStep] = useState<1 | 2>(1);
   const [config, setConfig] = useState<GenerationConfig>({
     tone: ['Chuyên nghiệp, học thuật'],
+    customTones: [],
     language: 'Tiếng Việt',
     detailLevel: 'standard'
   });
@@ -48,7 +49,6 @@ const App: React.FC = () => {
     setConfig(prev => ({ ...prev, [key]: value }));
   };
 
-  // Helper to get ALL generated text up to the current point
   const getAccumulatedText = (currentItemId: string, currentItems: OutlineItem[]): string => {
     const currentIndex = currentItems.findIndex(i => i.id === currentItemId);
     if (currentIndex <= 0) return "";
@@ -60,18 +60,15 @@ const App: React.FC = () => {
       .join("\n\n");
   };
 
-  // Helper to get future points (Look-ahead) to prevent redundancy
   const getNextPoints = (currentItemId: string, currentItems: OutlineItem[]): string[] => {
     const currentIndex = currentItems.findIndex(i => i.id === currentItemId);
     if (currentIndex === -1 || currentIndex === currentItems.length - 1) return [];
     
-    // Get next 3 items as context
     return currentItems
       .slice(currentIndex + 1, currentIndex + 4)
       .map(i => i.originalText);
   };
 
-  // Manual single generation
   const handleGenerateSingle = async (id: string) => {
     setIsGenerating(true);
     if (stopSignalRef.current) return;
@@ -103,16 +100,13 @@ const App: React.FC = () => {
     setIsGenerating(false);
   };
 
-  // Batch generation for "Generate All"
   const handleGenerateAll = async () => {
     setIsGenerating(true);
     stopSignalRef.current = false;
 
-    // Use a local copy to manage state across batches, but we must update React state to show UI changes
     let localItems = [...items]; 
-    const BATCH_SIZE = 5; // Group 5 items per request to reduce API calls
+    const BATCH_SIZE = 5;
 
-    // Filter items that need generation
     const pendingIndices = localItems
         .map((item, index) => ({ item, index }))
         .filter(({ item }) => item.status !== GenerationStatus.SUCCESS);
@@ -122,14 +116,12 @@ const App: React.FC = () => {
       return;
     }
 
-    // Process in batches
     for (let i = 0; i < pendingIndices.length; i += BATCH_SIZE) {
         if (stopSignalRef.current) break;
 
         const batch = pendingIndices.slice(i, i + BATCH_SIZE);
         const batchItems = batch.map(b => b.item);
         
-        // 1. Set Status to Loading for all items in batch
         setItems(prev => prev.map(item => {
             if (batchItems.some(b => b.id === item.id)) {
                 return { ...item, status: GenerationStatus.loading };
@@ -137,13 +129,9 @@ const App: React.FC = () => {
             return item;
         }));
 
-        // 2. Prepare Context
-        // Use the ID of the first item in batch to get accumulated text
         const firstItemInBatch = batchItems[0];
-        // We need the accumulated text from the MAIN list (localItems), not just the batch
         const accumulatedText = getAccumulatedText(firstItemInBatch.id, localItems);
         
-        // Get look-ahead points (points coming AFTER this entire batch)
         const lastItemInBatchIdx = batch[batch.length - 1].index;
         const nextPointsOutsideBatch = localItems
             .slice(lastItemInBatchIdx + 1, lastItemInBatchIdx + 4)
@@ -152,7 +140,6 @@ const App: React.FC = () => {
         const isLastBatch = (i + BATCH_SIZE) >= pendingIndices.length && (lastItemInBatchIdx === localItems.length - 1);
 
         try {
-            // 3. Call API
             const results = await generateBatch(
                 batchItems,
                 rawOutline,
@@ -162,8 +149,6 @@ const App: React.FC = () => {
                 isLastBatch
             );
 
-            // 4. Update Success State
-            // We update localItems for future context loop
             results.forEach(res => {
                 const targetIndex = localItems.findIndex(x => x.id === res.id);
                 if (targetIndex !== -1) {
@@ -175,7 +160,6 @@ const App: React.FC = () => {
                 }
             });
 
-            // We update React state for UI
             setItems(prev => prev.map(item => {
                 const res = results.find(r => r.id === item.id);
                 if (res) {
@@ -184,18 +168,15 @@ const App: React.FC = () => {
                 return item;
             }));
 
-            // Small delay to be safe
             await new Promise(resolve => setTimeout(resolve, 200));
 
         } catch (error: any) {
-            // Handle Batch Error
             setItems(prev => prev.map(item => {
                  if (batchItems.some(b => b.id === item.id)) {
                     return { ...item, status: GenerationStatus.ERROR, errorMessage: error.message };
                 }
                 return item;
             }));
-            // If a batch fails, we probably should stop or skip? Let's stop to save tokens.
             break;
         }
     }
@@ -216,7 +197,6 @@ const App: React.FC = () => {
       <main className="flex-grow flex flex-col max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 min-h-0">
         <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0 h-full">
           
-          {/* Left Panel: Input */}
           <div className={`
             lg:col-span-4 h-full flex flex-col min-h-0 transition-all duration-300
             ${step === 1 ? 'block' : 'hidden lg:flex'}
@@ -227,7 +207,6 @@ const App: React.FC = () => {
              />
           </div>
 
-          {/* Right Panel: Expansion List */}
           <div className={`
              lg:col-span-8 h-full flex flex-col min-h-0
              ${step === 2 ? 'block' : 'hidden lg:flex'}
