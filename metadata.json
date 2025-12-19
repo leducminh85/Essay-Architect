@@ -1,0 +1,5 @@
+{
+  "name": "Outline to Essay Expander",
+  "description": "A tool to convert detailed outlines into long-form essays by expanding each point individually using AI.",
+  "requestFramePermissions": []
+}
